@@ -104,12 +104,20 @@ public:
     std::cout << "end ---------------" << std::endl;
   }
 
+  /**
+   * Sends message to neighbor organism
+   * @param message The message to send.
+   * @param neighborOrganism The organism to send it to.
+   */
   void SendMessage(int32_t message, emp::Ptr<Organism> neighborOrganism) {
     AddToSent(message);
     neighborOrganism->AddToInbox(message);
-    std::cout << message << " sent by org " << GetCellID() << "\n";
   }
 
+  /**
+   * Retrieves message from inbox
+   * @return The message.
+   */
   int32_t RetrieveMessage() {
     std::vector<int32_t> inbox = GetInbox();
     int readIdx = GetReadIdx();
@@ -124,7 +132,6 @@ public:
     else {
       message = inbox.back();
     }
-    std::cout << message << " retrieved by org " << GetCellID() << "\n";
     return message;
 }
 };

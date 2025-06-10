@@ -69,21 +69,20 @@ struct ReproduceInstruction {
   static size_t prevalence() { return 1; }
 };
 
-struct SendMessageInstruction { //struct is similar to class but everything is default public
+struct SendMessageInstruction { //instruction for sending message
     template <typename Spec>
     static void run(sgpl::Core<Spec> &core, const sgpl::Instruction<Spec> &inst,
                   const sgpl::Program<Spec> &,
                   typename Spec::peripheral_t &state) noexcept {
 
-        //Whatever you want to happen when the instruction is executed by the organism
         state.world->SendMessageHelper(core.registers[ inst.args[0] ], state.current_location);
     }
 
-    static std::string name() { return "Send Message"; } //Whatever you want the human readable name to be
-    static size_t prevalence() { return 1; } //How prevalent you want this instruction to be relative to others, 1 is a good value
+    static std::string name() { return "Send Message"; } 
+    static size_t prevalence() { return 1; } 
 };
 
-struct RetrieveMessageInstruction { //struct is similar to class but everything is default public
+struct RetrieveMessageInstruction { //instruction for retrieving message
     template <typename Spec>
     static void run(sgpl::Core<Spec> &core, const sgpl::Instruction<Spec> &inst,
                   const sgpl::Program<Spec> &,

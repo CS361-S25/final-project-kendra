@@ -5,8 +5,15 @@
 #include "emp/web/web.hpp"
 #include "World.h"
 
+#include "ConfigSetup.h"
+#include "emp/config/ArgManager.hpp"
+#include "emp/prefab/ConfigPanel.hpp"
+#include "emp/web/UrlParams.hpp"
+
 
 emp::web::Document doc("target");
+emp::web::Document settings("settings");
+MyConfigType config;
 
 class DEAnimator : public emp::web::Animate {
 
@@ -17,30 +24,60 @@ class DEAnimator : public emp::web::Animate {
     const double width{num_w_boxes * RECT_SIDE};
     const double height{num_h_boxes * RECT_SIDE};
 
-    emp::Random random{2};
+    emp::Random random{config.SEED()};
     OrgWorld world{random};
 
     emp::web::Canvas canvas{width, height, "canvas"};
 
     public:
 
+    /**
+     * Constructor for DEAnimator.
+     */
     DEAnimator() {
-        // set up webpage
-        doc << canvas;
-        doc << GetToggleButton("Toggle");
-        doc << GetStepButton("Step");
-        
-        // set up world
-        random.ResetSeed(2);
-        world.Resize(num_h_boxes,num_w_boxes);
-        world.SetPopStruct_Grid(num_w_boxes, num_h_boxes);
+        // sets up canvas, explanation text, and settings panel
+        SetUpWebpage();
+       
+        // if user changed seed, updates it
+        if (random.GetSeed() != config.SEED()) {
+            random.ResetSeed(config.SEED());
+        }
 
-        // insert 5 new organisms at random locations
-        for (int i = 0; i< 5; i++) {
+        // sets up world and population dimensions
+        world.SetPopStruct_Grid(num_w_boxes, num_h_boxes);
+        world.Resize(num_h_boxes,num_w_boxes);
+
+         // creates the specified number of new organisms and randomly places them in the world
+        for (int i = 0; i< config.NUM_START(); i++) {
             Organism* new_org = new Organism(&world, world.MakeCellID());
             world.Inject(*new_org);
         }
         
+    }
+
+
+     /**
+     * Sets up canvas, explanation text, and settings panel for web GUI.
+     */
+    void SetUpWebpage() {
+        // set up canvas + buttons
+        doc << canvas;
+        doc << GetToggleButton("Toggle");
+        doc << GetStepButton("Step");
+
+        // apply configuration query params and config files to config
+        auto specs = emp::ArgManager::make_builtin_specs(&config);
+        emp::ArgManager am(emp::web::GetUrlParams(), specs);
+        am.UseCallbacks();
+        if (am.HasUnused()) std::exit(EXIT_FAILURE);
+
+        // setup configuration panel
+        emp::prefab::ConfigPanel config_panel(config);
+        config_panel.SetRange("NUM_START", "1", "9");
+
+        // add explanation text and config panel
+        settings << "<p>This project attempts to replicate the results of the paper 'Directed Evolution of Communication and Cooperation in Digital Organisms'. Each organism has a unique cell-ID and can send and retrieve messages. Although my project does not reward or punish organisms for the message value, the original paper attempts to evolve the behavior of organisms sending messages such that messages eventually carry the largest cell-ID. Each grid square represents an organism, and the coloration represents the largest message value that the organism has sent in the last 100 iterations. Red represents a larger value while blue represents a smaller value.</p>";
+        settings << config_panel;
     }
 
     /**

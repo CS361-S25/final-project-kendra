@@ -10,15 +10,84 @@ class OrgWorld : public emp::World<Organism> {
   emp::vector<emp::WorldPosition> reproduce_queue;
   std::vector<Task *> tasks{new SumTask(), new NotTask(), new SquareTask(), new AndNTask(), new NorTask()};
 
+  // data nodes
+  emp::Ptr<emp::DataMonitor<int>> orgCount;
+  emp::Ptr<emp::DataMonitor<int32_t>> avgMaxSent;
 public:
   OrgWorld(emp::Random &_random) : emp::World<Organism>(_random) {}
 
-  ~OrgWorld() {}
+  ~OrgWorld() {
+    if (orgCount) orgCount.Delete();
+    if (avgMaxSent) avgMaxSent.Delete();
+  }
+
 
   std::set<int32_t> cellIDs;
   int32_t maxCellID = 0;
   int32_t minCellID = 2147483647;
 
+    /**
+  * Updates and returns the data node that represents the number of organisms in the population.
+  * @return The org count data node.
+  */
+  emp::DataMonitor<int>& GetOrgCount() {
+    if(!orgCount) {
+      orgCount.New();
+        OnUpdate([this](size_t){
+        orgCount -> Reset();
+        for (size_t i = 0; i < pop.size(); i++)
+            if (IsOccupied(i)) {
+              orgCount->AddDatum(1);
+            }
+        });
+    }
+    return *orgCount;
+  }
+
+
+  /**
+  * Updates and returns the data node that represents the average max sent value
+  * @return The org count data node.
+  */
+  emp::DataMonitor<int32_t>& GetAvgMaxSent() {
+    if(!avgMaxSent) {
+      avgMaxSent.New();
+        OnUpdate([this](size_t){
+        avgMaxSent->Reset();
+
+        int32_t totalMaxSent = 0;
+        int numOrgs = 0;
+        for (size_t i = 0; i < pop.size(); i++) {
+            if (IsOccupied(i)) {
+              numOrgs++;
+              totalMaxSent += GetOrgPtr(i)->GetMaxSent();
+            }
+        }
+        avgMaxSent->AddDatum(totalMaxSent/numOrgs);
+      });
+    }
+    return *avgMaxSent;
+  }
+
+
+    /**
+  * Sets up the data file for measurements of organism count and task count.
+  * @return The data file
+  */
+  emp::DataFile & SetupOrgFile(const std::string & filename) {
+    // sets up Datafile and Datanodes
+    auto & file = SetupFile(filename);
+    auto & orgCountNode = GetOrgCount();
+    auto & avgMaxSentNode = GetAvgMaxSent();
+
+    // populate the dtata file
+    file.AddVar(update, "update", "Update");
+    file.AddTotal(orgCountNode, "org count", "Total number of organisms");
+    file.AddTotal(avgMaxSentNode, "avg max sent", "Average max sent value across the population");
+    file.PrintHeaderKeys();
+
+    return file;
+  }
 
   const pop_t &GetPopulation() { return pop; }
 
@@ -30,11 +99,6 @@ public:
       if (!IsOccupied(i)) {
         continue;
       }
-      // pop[i]->SendMessage(messageVal, pop[i]);
-      // messageVal++;
-      // while (pop[i]->GetReadIdx() < pop[i]->GetInbox().size()) {
-      //   std::cout << pop[i]->RetrieveMessage() << " is the message for org at the idx " << i << " and message val is " << messageVal-1 << '\n';
-      // }
       pop[i]->Process(i);
     }
 
